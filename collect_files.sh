@@ -1,52 +1,56 @@
 #!/bin/bash
 
 copy_files() {
-    source="$1"
-    target="$2"
-    max_depth="$3"
+    local source=$(realpath "$1")
+    local target=$(realpath "$2")
+    local max_depth="$3"
 
     mkdir -p "$target"
     
-    base_depth=$(echo "$source" | tr -cd '/' | wc -c)
+    local base_depth=$(echo "$source" | tr -cd '/' | wc -c)
     
+    # Обработка файлов
     while IFS= read -r -d '' file; do
-        ap=$(dirname "$file")
-        current_depth=$(echo "$ap" | tr -cd '/' | wc -c)
+        local dir_path=$(dirname "$file")
+        local current_depth=$(echo "$dir_path" | tr -cd '/' | wc -c)
         current_depth=$((current_depth - base_depth))
-        
+
+        # Файлы копируем, если глубина их директории < max_depth
         if [ -n "$max_depth" ] && [ "$current_depth" -ge "$max_depth" ]; then
             continue
         fi
         
-        filename=$(basename "$file")
-        base="${filename%.*}"
-        ext="${filename##*.}"
-        original_name="$filename"
+        local filename=$(basename "$file")
+        local base="${filename%.*}"
+        local ext="${filename##*.}"
+        local original_name="$filename"
         
+        # Разрешение конфликтов имен
         while [[ -n "${total[$filename]}" ]]; do
             reps[$original_name]=$((reps[$original_name] + 1))
             filename="${base}_${reps[$original_name]}.$ext"
         done
         
         total[$filename]=1
-
-        relative_path="${file#$source/}"
-        relative_dir=$(dirname "$relative_path")
-        mkdir -p "$target/$relative_dir"
         
-        cp "$file" "$target/$relative_path"
+        # Копирование файла
+        local relative_path="${file#$source/}"
+        mkdir -p "$target/$(dirname "$relative_path")"
+        cp -n "$file" "$target/$relative_path"
     done < <(find "$source" -type f -print0)
     
+    # Создание директорий до max_depth включительно
     if [ -n "$max_depth" ]; then
         while IFS= read -r -d '' dir; do
             [ "$dir" = "$source" ] && continue
             
-            ap=$(dirname "$dir")
-            current_depth=$(echo "$dir" | tr -cd '/' | wc -c)
+            local parent_dir=$(dirname "$dir")
+            local current_depth=$(echo "$parent_dir" | tr -cd '/' | wc -c)
             current_depth=$((current_depth - base_depth))
             
+            # Создаем директории, если их глубина < max_depth
             if [ "$current_depth" -lt "$max_depth" ]; then
-                relative_path="${dir#$source/}"
+                local relative_path="${dir#$source/}"
                 mkdir -p "$target/$relative_path"
             fi
         done < <(find "$source" -type d -print0)
@@ -56,14 +60,31 @@ copy_files() {
 declare -A total
 declare -A reps
 
-source="$1"
-target="$2"
-
+# Парсинг аргументов
+source=""
+target=""
 max_depth=""
-for arg in "$@"; do
-    if [[ "$arg" == "-=max_depth"* ]]; then
-        max_depth="${arg#*=}"
-    fi
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -=max_depth)
+            max_depth="$2"
+            shift 2
+            ;;
+        *)
+            if [ -z "$source" ]; then
+                source="$1"
+            else
+                target="$1"
+            fi
+            shift
+            ;;
+    esac
 done
+
+[ -z "$source" ] || [ -z "$target" ] && {
+    echo "Usage: $0 input_dir output_dir [-=max_depth depth]"
+    exit 1
+}
 
 copy_files "$source" "$target" "$max_depth"
