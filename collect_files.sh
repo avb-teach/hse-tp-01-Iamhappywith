@@ -2,7 +2,7 @@
 copy_files() {
     source="$1"
     target="$2"
-    max_depth="$3"
+    max_depth=""
     mkdir -p "$target"
     
     base_depth=$(echo "$source" | tr -cd '/' | wc -c)
@@ -57,7 +57,7 @@ declare -A reps
 
 source="$1"
 target="$2"
-max_depth="$4"
+
 
 max_depth=""
 for arg in "$@"; do
