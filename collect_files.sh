@@ -59,12 +59,10 @@ target="$2"
 
 max_depth=""
 for arg in "$@"; do
-    if [[ "$arg" == "-=max_depth"* ]]; then
-        max_depth="${arg#*=}"
-        if [ -n "$max_depth" ]; then
-            max_depth=$((max_depth - 1))
-        fi
-    fi
+    if [[ "$arg" == "-=max_depth"* ]]; then
+        max_depth="${arg#*=}"
+    fi
 done
 
 copy_files "$source" "$target" "$max_depth"
+
