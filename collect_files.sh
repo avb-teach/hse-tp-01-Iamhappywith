@@ -60,3 +60,4 @@ for arg in "$@"; do
 done
 
 copy_files "$source" "$target" "$max_depth"
+ 
